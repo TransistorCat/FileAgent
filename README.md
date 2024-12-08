@@ -11,7 +11,6 @@
 [![Stargazers][stars-shield]][stars-url]
 [![Issues][issues-shield]][issues-url]
 [![MIT License][license-shield]][license-url]
-[![LinkedIn][linkedin-shield]][linkedin-url]
 
 <!-- PROJECT LOGO -->
 <br />
@@ -128,7 +127,7 @@ xxx@xxxx
 
 ### 版权说明
 
-该项目签署了MIT 授权许可，详情请参阅 [LICENSE.txt](https://github.com/TransistorCat/FileAgent/blob/master/LICENSE.txt)
+该项目签署了MIT 授权许可，详情请参阅 [LICENSE.txt](https://github.com/TransistorCat/FileAgent/blob/master/LICENSE)
 
 ### 鸣谢
 
@@ -151,6 +150,6 @@ xxx@xxxx
 [issues-shield]: https://img.shields.io/github/issues/TransistorCat/FileAgent.svg?style=flat-square
 [issues-url]: https://img.shields.io/github/issues/TransistorCat/FileAgent.svg
 [license-shield]: https://img.shields.io/github/license/TransistorCat/FileAgent.svg?style=flat-square
-[license-url]: https://github.com/TransistorCat/FileAgent/blob/master/LICENSE.txt
+[license-url]: https://github.com/TransistorCat/FileAgent/blob/master/LICENSE
 [linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=flat-square&logo=linkedin&colorB=555
 [linkedin-url]: https://linkedin.com/in/shaojintian
