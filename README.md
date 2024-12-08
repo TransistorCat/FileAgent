@@ -86,7 +86,7 @@ eg:
 
 ### 开发的架构 
 
-请阅读[ARCHITECTURE.md](https://github.com/TransistorCat/FileAgent/blob/master/ARCHITECTURE.md) 查阅为该项目的架构。
+请阅读[ARCHITECTURE.md](https://github.com/TransistorCat/FileAgent/blob/main/ARCHITECTURE.md) 查阅为该项目的架构。
 
 ### 部署
 
@@ -127,7 +127,7 @@ xxx@xxxx
 
 ### 版权说明
 
-该项目签署了MIT 授权许可，详情请参阅 [LICENSE.txt](https://github.com/TransistorCat/FileAgent/blob/master/LICENSE)
+该项目签署了MIT 授权许可，详情请参阅 [LICENSE.txt](https://github.com/TransistorCat/FileAgent/blob/main/LICENSE)
 
 ### 鸣谢
 
@@ -150,6 +150,6 @@ xxx@xxxx
 [issues-shield]: https://img.shields.io/github/issues/TransistorCat/FileAgent.svg?style=flat-square
 [issues-url]: https://img.shields.io/github/issues/TransistorCat/FileAgent.svg
 [license-shield]: https://img.shields.io/github/license/TransistorCat/FileAgent.svg?style=flat-square
-[license-url]: https://github.com/TransistorCat/FileAgent/blob/master/LICENSE
+[license-url]: https://github.com/TransistorCat/FileAgent/blob/main/LICENSE
 [linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=flat-square&logo=linkedin&colorB=555
 [linkedin-url]: https://linkedin.com/in/shaojintian
