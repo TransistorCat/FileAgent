@@ -57,8 +57,6 @@
 
 ### 上手指南
 
-请将所有链接中的“TransistorCat/FileAgent”改为“your_github_name/your_repository”
-
 
 
 ###### 开发前的配置要求
@@ -79,22 +77,7 @@ git clone https://github.com/TransistorCat/FileAgent.git
 eg:
 
 ```
-filetree 
-├── ARCHITECTURE.md
-├── LICENSE.txt
-├── README.md
-├── /account/
-├── /bbs/
-├── /docs/
-│  ├── /rules/
-│  │  ├── backend.txt
-│  │  └── frontend.txt
-├── manage.py
-├── /oa/
-├── /static/
-├── /templates/
-├── useless.md
-└── /util/
+
 
 ```
 
@@ -140,8 +123,6 @@ filetree
 ### 作者
 
 xxx@xxxx
-
-知乎:xxxx  &ensp; qq:xxxxxx    
 
  *您也可以在贡献者名单中参看所有参与该项目的开发者。*
 
