@@ -1,216 +1,126 @@
-from langgraph.graph import StateGraph, END
-from typing import TypedDict, Annotated, List
-import json
-import os
-from datetime import datetime
-from instruction_parser import InstructionParser
+from langchain_core.messages import SystemMessage, AIMessage, HumanMessage
+from langchain_openai import ChatOpenAI
+from langgraph.graph import START, StateGraph, MessagesState, END
+from langgraph.prebuilt import tools_condition, ToolNode
 from dotenv import load_dotenv
-import re
+from config.settings import load_config
+from tools.file_tools import FileTools
+import os
 
-load_dotenv()
+# 加载环境变量
 
-# 定义状态类型
-class State(TypedDict):
-    input: dict  # 输入参数
-    output: dict  # 输出结果
-    messages: List[str]  # 操作日志
-    error: str | None  # 错误信息
-    instruction: str | None  # 原始自然语言指令
-
-# 文件操作模块
-def file_operations(state: State) -> State:
-    """处理文件基础操作：创建、读取、更新、删除"""
-    command = state["input"].get("command")
-    path = state["input"].get("path")
-    content = state["input"].get("content", "")
+def create_workflow():
+    """创建文件操作工作流"""
+    # 初始化 LLM
+    llm = ChatOpenAI(
+        model=load_config()["llm"]["model"],
+        temperature=0.7
+    )
     
-    try:
-        if command == "create":
-            with open(path, 'w', encoding='utf-8') as f:
-                f.write(content)
-            state["messages"].append(f"创建文件: {path}")
-            
-        elif command == "read":
-            if os.path.exists(path):
-                with open(path, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                state["output"]["content"] = content
-                state["messages"].append(f"读取文件: {path}")
-            else:
-                raise FileNotFoundError(f"文件不存在: {path}")
-                
-        elif command == "update":
-            with open(path, 'w', encoding='utf-8') as f:
-                f.write(content)
-            state["messages"].append(f"更新文件: {path}")
-            
-        elif command == "delete":
-            if os.path.exists(path):
-                os.remove(path)
-                state["messages"].append(f"删除文件: {path}")
-            else:
-                raise FileNotFoundError(f"文件不存在: {path}")
-                
-        state["output"]["status"] = "success"
-        
-    except Exception as e:
-        state["error"] = str(e)
-        state["output"]["status"] = "error"
-        
-    return state
-
-# 文件搜索模块
-def file_search(state: State) -> State:
-    """按文件名、类型等进行搜索"""
-    search_path = state["input"].get("path", ".")
-    pattern = state["input"].get("pattern", "*")
+    # 准备文件操作工具
+    tools = [
+        FileTools.create_file,
+        FileTools.create_directory,
+        FileTools.read_file,
+        FileTools.delete_file,
+        FileTools.delete_directory,
+        FileTools.rename_file,
+        FileTools.move_item,
+        FileTools.list_directory,
+    ]
     
-    try:
-        results = []
-        # 将通配符模式转换为正则表达式
-        regex_pattern = pattern.replace(".", "\\.").replace("*", ".*")
-        # 确保是完整匹配
-        regex_pattern = f"^{regex_pattern}$"
-        # 编译正则表达式
-        regex = re.compile(regex_pattern)
-        
-        for root, dirs, files in os.walk(search_path):
-            for file in files:
-                # 使用正则表达式匹配
-                if regex.search(file):
-                    file_path = os.path.join(root, file)
-                    file_stat = os.stat(file_path)
-                    results.append({
-                        "name": file,
-                        "path": file_path,
-                        "size": file_stat.st_size,
-                        "modified": datetime.fromtimestamp(file_stat.st_mtime).isoformat()
-                    })
-        
-        state["output"]["results"] = results
-        state["messages"].append(f"搜索完成，找到 {len(results)} 个文件")
-        state["output"]["status"] = "success"
-        
-    except re.error as e:
-        state["error"] = f"无效的正则表达式: {str(e)}"
-        state["output"]["status"] = "error"
-    except Exception as e:
-        state["error"] = str(e)
-        state["output"]["status"] = "error"
-        
-    return state
+    # 绑定工具到 LLM
+    llm_with_tools = llm.bind_tools(tools)
+    
+    # 系统提示信息
+    sys_msg = SystemMessage(
+        content="""你是一个文件操作助手，可以执行创建、读取、编辑等文件操作。
 
-# 初始化状态
-def init_state(state: State) -> State:
-    """初始化状态"""
-    if "messages" not in state:
-        state["messages"] = []
-    if "output" not in state:
-        state["output"] = {}
-    if "error" not in state:
-        state["error"] = None
-    if "input" not in state:
-        state["input"] = {}
-    return state
+    可用的工具：
+    - create_file: 创建文件
+    - create_directory: 创建文件夹
+    - read_file: 读取文件内容
+    - delete_file: 删除文件
+    - delete_directory: 删除文件夹
+    - rename_file: 重命名文件或文件夹
+    - move_item: 移动文件或文件夹
+    - list_directory: 列出目录内容
 
-# 添加指令解析节点
-def parse_instruction(state: State) -> State:
-    """解析自然语言指令"""
-    try:
-        parser = InstructionParser()
-        instruction = state["instruction"]
+    当需要了解目录中的文件数量时，使用 list_directory 工具，它会返回目录中的所有内容。
+    你可以直接从返回的结果中计算文件数量，无需多次调用。
+
+    请记住：
+    1. list_directory 的结果中包含了完整的文件列表
+    2. 文件前有 📄 标记，文件夹前有 📁 标记
+    3. 统计文件数量时只需查看一次目录内容即可
+"""
+    )
+    
+    # 定义助手节点
+    def assistant(state: MessagesState):
+        messages = [sys_msg] + state["messages"]
+        response = llm_with_tools.invoke(messages)
         
-        if not instruction:
-            raise ValueError("未提供指令")
+        # 如果响应中包含工具调用结果，将其作为系统消息添加到上下文
+        # if hasattr(response, 'additional_kwargs') and 'tool_calls' in response.additional_kwargs:
+        #     tool_calls = response.additional_kwargs['tool_calls']
+        #     for tool_call in tool_calls:
+        #         if tool_call.get('function', {}).get('name') == 'list_directory':
+        #             context_msg = SystemMessage(content=f"目录内容上下文：\n{tool_call.get('function', {}).get('output', '')}")
+        #             messages.append(context_msg)
+        print(messages)
+        return {"messages": messages + [response]}
+    
+    # 构建工作流图
+    builder = StateGraph(MessagesState)
+    builder.add_node("assistant", assistant)
+    builder.add_node("tools", ToolNode(tools))
+    
+    # 添加边
+    builder.add_edge(START, "assistant")
+    builder.add_conditional_edges(
+        "assistant",
+        tools_condition,
+    )
+    builder.add_edge("tools", "assistant")
+    builder.add_edge("assistant", END)
+    
+    return builder.compile()
+
+def main():
+    # 创建工作流
+    workflow = create_workflow()
+    
+    # 存储对话历史
+    conversation_history = []
+    
+    while True:
+        # 获取用户输入
+        content = input("\n请输入指令（输入 'exit' 退出）：").strip()
+        
+        if content.lower() == 'exit':
+            print("再见！")
+            break
             
-        # 解析指令
-        command = parser.parse_instruction(instruction)
+        if not content:
+            continue
         
-        # 更新状态
-        state["input"] = command
-        state["messages"].append(f"解析指令: {instruction}")
+        # 添加用户消息到历史记录
+        conversation_history.append(HumanMessage(content=content))
         
-    except Exception as e:
-        state["error"] = str(e)
-        state["messages"].append(f"指令解析失败: {str(e)}")
-        
-    return state
+        try:
+            # 执行工作流
+            result = workflow.invoke({"messages": conversation_history})
+            
+            # 更新对话历史
+            conversation_history = result["messages"]
+            
+            # 打印结果
+            for message in result["messages"]:
+                if isinstance(message, (AIMessage, SystemMessage)):
+                    print(f"\n{message.type}: {message.content}")
+        except Exception as e:
+            print(f"\n发生错误: {str(e)}")
 
-# 创建工作流图
-workflow = StateGraph(State)
-
-# 添加节点
-workflow.add_node("init", init_state)
-workflow.add_node("file_ops", file_operations)
-workflow.add_node("search", file_search)
-workflow.add_node("parse", parse_instruction)
-
-# 设置条件路由
-def route_to_operation(state: State):
-    command_type = state["input"].get("type", "file_ops")
-    if command_type == "search":
-        return "search"
-    return "file_ops"
-
-# 设置节点间的关系 - 修改这部分
-workflow.add_conditional_edges(
-    "init",
-    lambda state: "parse" if state.get("instruction") else route_to_operation(state),
-    {
-        "parse": "parse"
-    }
-)
-
-# 从解析节点到操作节点的路由
-workflow.add_conditional_edges(
-    "parse",
-    route_to_operation,
-    {
-        "search": "search",
-        "file_ops": "file_ops"
-    }
-)
-
-# 添加到终止节点的边
-workflow.add_edge("file_ops", END)
-workflow.add_edge("search", END)
-
-# 设置入口节点
-workflow.set_entry_point("init")
-
-# 编译图
-app = workflow.compile()
-from IPython.display import Image, display
-
-
-# 示例运行
 if __name__ == "__main__":
-    # 创建初始状态
-    initial_state = {
-        "instruction": "创建一个名为 notes.txt 的文件，内容是'这是一个测试文件'",
-        "input": {},
-        "output": {},
-        "messages": [],
-        "error": None
-    }
-    
-    # 运行工作流
-    result = app.invoke(initial_state)
-    print(json.dumps(result, ensure_ascii=False, indent=2))
-    
-    # 搜索文件示例
-    search_state = {
-        "instruction": "查找src目录下所有py文件",
-        "input": {},
-        "output": {},
-        "messages": [],
-        "error": None
-    }
-    
-    result = app.invoke(search_state)
-    print(json.dumps(result, ensure_ascii=False, indent=2))
-    try:
-        display(Image(app.get_graph().draw_mermaid_png()))
-    except Exception:
-    # This requires some extra dependencies and is optional
-        pass
+    main() 
